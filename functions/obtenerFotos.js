@@ -18,11 +18,11 @@ exports.handler = async (event, context) => {
     });
 
     try {
-        // --- CAMBIO IMPORTANTE: Usamos un Actor diferente (Más rápido y resistente) ---
-        // Usamos "apify/instagram-api-scraper" en lugar del scraper normal.
+        // CORRECCIÓN: Usamos 'directUrls' con el enlace completo.
+        // El actor 'apify/instagram-api-scraper' a veces ignora 'usernames' si no se configura bien.
         const run = await client.actor("apify/instagram-api-scraper").call({
-            usernames: [username], // Este actor prefiere "usernames" en vez de directUrls
-            resultsLimit: 12,      // Pedimos 12 para tener margen
+            directUrls: [`https://www.instagram.com/${username}/`], 
+            resultsLimit: 12,
         });
 
         // Obtenemos los resultados
