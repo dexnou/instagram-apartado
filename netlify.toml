@@ -1,0 +1,12 @@
+[build]
+  functions = "functions"
+
+[[redirects]]
+  from = "/api/photos"
+  to = "/.netlify/functions/obtenerFotos"
+  status = 200
+
+[[redirects]]
+  from = "/api/proxy-image"
+  to = "/.netlify/functions/proxyImagen"
+  status = 200

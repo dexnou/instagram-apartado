@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Instagram</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f4;}
+        .search-box { margin-bottom: 20px; }
+        input { padding: 10px; width: 200px; border-radius: 5px; border: 1px solid #ccc;}
+        button { padding: 10px 20px; background: #E1306C; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;}
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; max-width: 1000px; margin: 20px auto; }
+        .card { background: white; padding: 5px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 5px; }
+        .loading { display: none; color: #E1306C; font-weight: bold; margin-top: 20px; }
+        #btnVerMas { margin-top: 20px; background-color: #333; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>📸 Visor Público</h1>
+    
+    <div class="search-box">
+        <input type="text" id="usernameInput" placeholder="Usuario (ej: leomessi)">
+        <button onclick="buscarNueva()">Buscar</button>
+    </div>
+
+    <div id="loading" class="loading">⏳ Cargando...</div>
+    <div id="resultados" class="grid"></div>
+    <button id="btnVerMas" onclick="mostrarPagina()">⬇️ Ver más</button>
+
+    <script>
+        let todasLasFotos = [];
+        let indiceActual = 0;
+        const POR_PAGINA = 10;
+
+        async function buscarNueva() {
+            const username = document.getElementById('usernameInput').value.trim();
+            const resultadosDiv = document.getElementById('resultados');
+            const loading = document.getElementById('loading');
+            const btn = document.getElementById('btnVerMas');
+
+            if(!username) return alert("Escribe un usuario");
+
+            resultadosDiv.innerHTML = '';
+            todasLasFotos = [];
+            indiceActual = 0;
+            btn.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                // LLAMADA A LA FUNCIÓN DE NETLIFY (Configurada en netlify.toml)
+                const response = await fetch(`/api/photos?username=${username}`);
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.error) {
+                    resultadosDiv.innerHTML = `<p style="color:red">Error: ${data.error}</p>`;
+                    return;
+                }
+                if (data.length === 0) {
+                    resultadosDiv.innerHTML = '<p>No se encontraron fotos.</p>';
+                    return;
+                }
+
+                todasLasFotos = data;
+                mostrarPagina();
+
+            } catch (error) {
+                loading.style.display = 'none';
+                console.error(error);
+                alert("Error de conexión");
+            }
+        }
+
+        function mostrarPagina() {
+            const resultadosDiv = document.getElementById('resultados');
+            const btn = document.getElementById('btnVerMas');
+            const lote = todasLasFotos.slice(indiceActual, indiceActual + POR_PAGINA);
+
+            lote.forEach(foto => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                // LLAMADA AL PROXY DE NETLIFY
+                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(foto.url)}`;
+                div.innerHTML = `<img src="${proxyUrl}" loading="lazy"><p>❤️ ${foto.likes || 0}</p>`;
+                resultadosDiv.appendChild(div);
+            });
+
+            indiceActual += lote.length;
+
+            if (indiceActual < todasLasFotos.length) {
+                btn.style.display = 'inline-block';
+                btn.innerText = `Ver más (${todasLasFotos.length - indiceActual})`;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
