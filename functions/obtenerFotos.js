@@ -1,7 +1,7 @@
 const { ApifyClient } = require('apify-client');
 
 exports.handler = async (event, context) => {
-    // Permitir CORS (para que funcione desde cualquier lado)
+    // Headers para evitar problemas de CORS
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -13,32 +13,36 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, headers, body: JSON.stringify({ error: "Falta el usuario" }) };
     }
 
-    // AQUI ESTÁ EL TRUCO: Usamos process.env para no exponer la clave
     const client = new ApifyClient({
         token: process.env.APIFY_TOKEN, 
     });
 
     try {
-        // Ejecutamos el Scraper
-        const run = await client.actor("apify/instagram-scraper").call({
-            directUrls: [`https://www.instagram.com/${username}/`],
-            resultsType: "posts",
-            resultsLimit: 30, // Traemos 30 fotos de golpe
+        // --- CAMBIO IMPORTANTE: Usamos un Actor diferente (Más rápido y resistente) ---
+        // Usamos "apify/instagram-api-scraper" en lugar del scraper normal.
+        const run = await client.actor("apify/instagram-api-scraper").call({
+            usernames: [username], // Este actor prefiere "usernames" en vez de directUrls
+            resultsLimit: 12,      // Pedimos 12 para tener margen
         });
 
-        // Obtenemos resultados
+        // Obtenemos los resultados
         const { items } = await client.dataset(run.defaultDatasetId).listItems();
         
-        // Limpiamos los datos
+        // Filtramos y limpiamos los datos (Este actor devuelve una estructura distinta)
         const photos = items.map(post => {
-            const imageUrl = post.displayUrl || post.url || post.thumbnailUrl;
+            // Este actor a veces devuelve la URL en 'displayUrl' o dentro de 'images'
+            let imageUrl = post.displayUrl || post.url;
+            
+            // Si no está directa, a veces viene en versions (calidad alta)
+            if (!imageUrl && post.display_url) imageUrl = post.display_url;
+
             return {
                 id: post.id,
                 url: imageUrl, 
-                caption: post.caption,
-                likes: post.likesCount
+                caption: post.caption || (post.edge_media_to_caption?.edges[0]?.node?.text) || "",
+                likes: post.likesCount || post.edge_media_preview_like?.count || 0
             };
-        }).filter(p => p.url);
+        }).filter(p => p.url); // Solo devolvemos los que tengan URL válida
 
         return {
             statusCode: 200,
@@ -47,11 +51,11 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error(error);
+        console.error("Error Apify:", error);
         return { 
             statusCode: 500, 
             headers, 
-            body: JSON.stringify({ error: error.message || "Error desconocido en Apify" }) 
+            body: JSON.stringify({ error: "Instagram bloqueó la conexión o tardó demasiado." }) 
         };
     }
 };
