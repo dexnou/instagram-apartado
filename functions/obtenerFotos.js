@@ -22,7 +22,7 @@ exports.handler = async (event, context) => {
         // El actor 'apify/instagram-api-scraper' a veces ignora 'usernames' si no se configura bien.
         const run = await client.actor("apify/instagram-api-scraper").call({
             directUrls: [`https://www.instagram.com/${username}/`], 
-            resultsLimit: 12,
+            resultsLimit: 6,
         });
 
         // Obtenemos los resultados
